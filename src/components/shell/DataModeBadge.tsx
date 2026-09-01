@@ -1,10 +1,15 @@
-import { Database, Radio } from "lucide-react";
-import { getIntegrationMode } from "@/lib/integration-mode";
+"use client";
 
-// Section 69: never let demo and real data mix silently. This renders
-// server-side from the env var directly (no client state to drift).
+import { Database, Radio } from "lucide-react";
+import { useRuntimeStore, getWorkspaceMode } from "@/lib/runtime-store";
+
+// Section 20/28/69: never let demo and real data mix silently. This is the
+// single agency-level Demo/Live indicator — the same workspaceMode value
+// the Integrations page's toggle sets, so this badge and that toggle can
+// never disagree.
 export function DataModeBadge() {
-  const mode = getIntegrationMode();
+  useRuntimeStore();
+  const mode = getWorkspaceMode();
   if (mode === "live") {
     return (
       <span className="flex items-center gap-1.5 rounded-full border border-[var(--color-success)]/40 bg-[var(--color-success-soft)] px-2.5 py-1 text-[11px] font-semibold uppercase tracking-wide text-[var(--color-success-strong)]">

@@ -6,6 +6,7 @@ import { useRuntimeStore } from "@/lib/runtime-store";
 import {
   OverviewTab, GoogleTab, ReviewsTab, ContentTab, SeoTab, SocialTab, AdsTab, LeadsTab, ReportsTab,
 } from "./LocationTabs";
+import { LocationIntegrationsTab } from "./LocationIntegrationsTab";
 
 export function LocationWorkspaceView({ client, location }: { client: Client; location: Location }) {
   useRuntimeStore(); // subscribe so live ReviewFlow completions are reflected without a manual refresh
@@ -21,6 +22,7 @@ export function LocationWorkspaceView({ client, location }: { client: Client; lo
         <TabsTrigger value="ads">Ads</TabsTrigger>
         <TabsTrigger value="leads">Leads</TabsTrigger>
         <TabsTrigger value="reports">Reports</TabsTrigger>
+        <TabsTrigger value="integrations">Integrations</TabsTrigger>
       </TabsList>
       <TabsContent value="overview"><OverviewTab location={location} client={client} /></TabsContent>
       <TabsContent value="google"><GoogleTab location={location} /></TabsContent>
@@ -31,6 +33,7 @@ export function LocationWorkspaceView({ client, location }: { client: Client; lo
       <TabsContent value="ads"><AdsTab location={location} /></TabsContent>
       <TabsContent value="leads"><LeadsTab location={location} /></TabsContent>
       <TabsContent value="reports"><ReportsTab location={location} client={client} /></TabsContent>
+      <TabsContent value="integrations"><LocationIntegrationsTab location={location} client={client} /></TabsContent>
     </Tabs>
   );
 }

@@ -8,6 +8,7 @@
 
 import { useSyncExternalStore } from "react";
 import type { AuditAction, AuditLogEntry, MessageTemplate, PermissionRole, ReviewCampaign, Task } from "./types";
+import type { IntegrationActivityLogEntry } from "./integrations/types";
 
 export interface ReviewCompletionDelta {
   count: number;
@@ -25,6 +26,10 @@ interface RuntimeState {
   customMessageTemplates: MessageTemplate[];
   archivedTemplateIds: string[];
   publishedReviewResponses: Record<string, string>;
+  workspaceMode: "demo" | "live";
+  readOnlySync: boolean;
+  mappingDecisions: Record<string, { status: "confirmed" | "rejected"; locationId?: string }>;
+  integrationActivity: IntegrationActivityLogEntry[];
 }
 
 const STORAGE_KEY = "clinicos-runtime-v1";
@@ -38,6 +43,10 @@ const EMPTY_STATE: RuntimeState = {
   customMessageTemplates: [],
   archivedTemplateIds: [],
   publishedReviewResponses: {},
+  workspaceMode: "demo",
+  readOnlySync: true,
+  mappingDecisions: {},
+  integrationActivity: [],
 };
 
 let state: RuntimeState = EMPTY_STATE;
@@ -215,4 +224,57 @@ export function publishReviewResponse(reviewId: string, text: string) {
 
 export function getPublishedReviewResponses(): Record<string, string> {
   return state.publishedReviewResponses;
+}
+
+// Demo Workspace vs Live Agency Workspace (section 28). Session-local for
+// now — mirrors the `agencies.workspace_mode` column, which becomes the
+// real source of truth once auth/agency selection exists.
+export function setWorkspaceMode(mode: "demo" | "live") {
+  state = { ...state, workspaceMode: mode };
+  persist();
+  emit();
+}
+
+export function getWorkspaceMode(): "demo" | "live" {
+  return state.workspaceMode;
+}
+
+// Read-only sync mode (section 19) — while true, no integration may write
+// to a real external account (publish a Google response, send a WhatsApp
+// template, post to social). Defaults true; flipping it off is itself a
+// write-enabling action worth its own audit trail entry at the call site.
+export function setReadOnlySync(value: boolean) {
+  state = { ...state, readOnlySync: value };
+  persist();
+  emit();
+}
+
+export function getReadOnlySync(): boolean {
+  return state.readOnlySync;
+}
+
+// Data Mapping Review decisions (section 12) — keyed by the discovered
+// Google location's external id. Never applied automatically; a row only
+// ever moves out of "pending" via an explicit Confirm/Reject click.
+export function setMappingDecision(externalLocationId: string, decision: { status: "confirmed" | "rejected"; locationId?: string }) {
+  state = { ...state, mappingDecisions: { ...state.mappingDecisions, [externalLocationId]: decision } };
+  persist();
+  emit();
+}
+
+export function getMappingDecisions(): Record<string, { status: "confirmed" | "rejected"; locationId?: string }> {
+  return state.mappingDecisions;
+}
+
+let integrationActivitySeq = 0;
+export function logIntegrationActivity(entry: Omit<IntegrationActivityLogEntry, "id" | "createdAt">) {
+  integrationActivitySeq += 1;
+  const full: IntegrationActivityLogEntry = { ...entry, id: `ia-${Date.now()}-${integrationActivitySeq}`, createdAt: new Date().toISOString() };
+  state = { ...state, integrationActivity: [full, ...state.integrationActivity].slice(0, 300) };
+  persist();
+  emit();
+}
+
+export function getIntegrationActivity(): IntegrationActivityLogEntry[] {
+  return state.integrationActivity;
 }

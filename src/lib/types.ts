@@ -346,15 +346,6 @@ export interface AdCampaign {
   conversionRate: number;
 }
 
-export interface Integration {
-  id: string;
-  name: string;
-  category: string;
-  status: "connected" | "attention" | "disconnected" | "not-connected";
-  description: string;
-  connectedAccounts?: number;
-}
-
 export interface AIInsight {
   id: string;
   module: string;

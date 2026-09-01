@@ -1,6 +1,6 @@
 import type {
   Insight, Task, ApprovalItem, RankingKeyword, Competitor, ContentItem,
-  ReviewCampaign, Lead, AdCampaign, Integration, Alert, Location, Client,
+  ReviewCampaign, Lead, AdCampaign, Alert, Location, Client,
 } from "../types";
 import { rngFor, pick, randInt } from "./rng";
 import { TEAM_MEMBERS, teamForModule } from "./pools";
@@ -597,26 +597,6 @@ function generateLeads(): Lead[] {
 }
 
 export const LEADS: Lead[] = generateLeads();
-
-// ---------------------------------------------------------------------------
-// Integrations
-// ---------------------------------------------------------------------------
-
-export const INTEGRATIONS: Integration[] = [
-  { id: "int-1", name: "Google Business Profile", category: "Google", status: "attention", description: "Import and manage Business Profiles across all locations.", connectedAccounts: 91 },
-  { id: "int-2", name: "Google Search Console", category: "Google", status: "connected", description: "Track organic search performance per location page.", connectedAccounts: 84 },
-  { id: "int-3", name: "Google Analytics", category: "Google", status: "connected", description: "Website traffic and conversion tracking.", connectedAccounts: 88 },
-  { id: "int-4", name: "Google Ads", category: "Google", status: "connected", description: "Manage and report on Google Ads campaigns.", connectedAccounts: 46 },
-  { id: "int-5", name: "Facebook Page", category: "Meta", status: "connected", description: "Publish and schedule Facebook content.", connectedAccounts: 79 },
-  { id: "int-6", name: "Instagram Business", category: "Meta", status: "attention", description: "Publish and schedule Instagram content.", connectedAccounts: 72 },
-  { id: "int-7", name: "Meta Ads", category: "Meta", status: "connected", description: "Manage Meta advertising campaigns.", connectedAccounts: 38 },
-  { id: "int-8", name: "WhatsApp Business API", category: "Communication", status: "connected", description: "Review requests and patient communication.", connectedAccounts: 91 },
-  { id: "int-9", name: "SMS Gateway", category: "Communication", status: "connected", description: "SMS-based review requests and reminders.", connectedAccounts: 66 },
-  { id: "int-10", name: "Email (SMTP)", category: "Communication", status: "connected", description: "Transactional and report emails to clients.", connectedAccounts: 97 },
-  { id: "int-11", name: "WordPress", category: "Website", status: "connected", description: "Manage location pages and SEO content.", connectedAccounts: 51 },
-  { id: "int-12", name: "Shopify", category: "Website", status: "not-connected", description: "For clinics selling products or gift cards.", connectedAccounts: 0 },
-  { id: "int-13", name: "Webflow", category: "Website", status: "disconnected", description: "Manage Webflow-hosted client sites.", connectedAccounts: 6 },
-];
 
 // ---------------------------------------------------------------------------
 // Auto-generated Alerts — derived from real conditions, click-through ready
