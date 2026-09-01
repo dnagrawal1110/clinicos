@@ -27,7 +27,7 @@ import { getClient } from "@/lib/mock/clients";
 import { getReputationDiagnosis } from "@/lib/mock/reputation-diagnosis";
 import { computeProgramHealth, PROGRAM_HEALTH_LABELS, getProgramForLocation, PROGRAM_STATUS_LABEL } from "@/lib/mock/review-programs";
 import { computeThemes, aiSummaryFor, isActionRequired, themeFor } from "@/lib/mock/feedback-insights";
-import { generateAIResponseDraft } from "@/lib/mock/google-reviews";
+import { generateReviewResponse } from "@/lib/ai-service";
 import { AUTOMATION_RULES } from "@/lib/mock/automation";
 import { campaignConversionRate } from "@/lib/mock/operations";
 import { addCustomTask, logAuditAction, setCampaignStatusOverride, publishReviewResponse } from "@/lib/runtime-store";
@@ -641,7 +641,7 @@ export function ReputationGoogleReviewsTab({ scope }: { scope: Scope }) {
   const [approved, setApproved] = useState<Set<string>>(new Set());
 
   function generate(review: GoogleReviewItem) {
-    setDrafting((d) => ({ ...d, [review.id]: generateAIResponseDraft(review) }));
+    setDrafting((d) => ({ ...d, [review.id]: generateReviewResponse(review).draft }));
     logAuditAction("review-response.generated", "google-review", review.id, `AI draft generated for ${review.reviewer}'s review`);
   }
 

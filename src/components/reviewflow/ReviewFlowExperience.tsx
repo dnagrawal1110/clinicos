@@ -2,9 +2,9 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Star, Sparkles, ShieldCheck, Pencil, ExternalLink, CheckCircle2, Phone, ChevronDown } from "lucide-react";
-import { improveText, runAuthenticityCheck } from "@/lib/review-ai";
-import { recordReviewCompletion } from "@/lib/runtime-store";
+import { generateReviewRewrite } from "@/lib/ai-service";
 import { track } from "@/lib/analytics";
+import { defaultReviewFlowPersistence, type ReviewFlowPersistence } from "@/lib/reviewflow-persistence";
 import { PatientErrorState, PatientLoadingState, type PatientErrorKind } from "./PatientErrorState";
 import type { ReviewFlowConfig } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -24,7 +24,8 @@ const ASPECTS = ["Doctor", "Staff", "Clinic", "Waiting time", "Overall experienc
 
 const MIN_FEEDBACK_LENGTH = 10;
 
-export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowConfig; simulate?: string }) {
+export function ReviewFlowExperience({ config, simulate, persistence }: { config: ReviewFlowConfig; simulate?: string; persistence?: ReviewFlowPersistence }) {
+  const persist = persistence ?? defaultReviewFlowPersistence(config.locationId);
   const [step, setStep] = useState<Step>("welcome");
   const [rating, setRating] = useState(0);
   const [original, setOriginal] = useState("");
@@ -41,13 +42,15 @@ export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowC
     track("campaign_opened", { locationId: config.locationId, campaignId: config.campaignId });
   }, [config.locationId, config.campaignId]);
 
-  const aiVersion = useMemo(() => improveText(original), [original]);
-  const authenticity = useMemo(() => runAuthenticityCheck(original, aiVersion), [original, aiVersion]);
+  const aiResult = useMemo(() => generateReviewRewrite(original), [original]);
+  const aiVersion = aiResult.text;
+  const authenticity = aiResult.authenticity;
   const finalText = editedText || (selectedVersion === "ai" && !aiFailed ? aiVersion : original);
 
   function selectRating(n: number) {
     setRating(n);
     track("rating_selected", { locationId: config.locationId, campaignId: config.campaignId, properties: { rating: n } });
+    void persist.onRatingSelected?.(n);
   }
 
   function onFeedbackChange(v: string) {
@@ -65,6 +68,7 @@ export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowC
       return;
     }
     track("feedback_submitted", { locationId: config.locationId, campaignId: config.campaignId, properties: { rating, length: original.length } });
+    void persist.onFeedbackSubmitted?.(original);
     setStep("ai-processing");
     setTimeout(() => {
       if (simulate === "ai-unavailable") {
@@ -75,6 +79,7 @@ export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowC
       }
       setStep("ai-assist");
       track("ai_assist_opened", { locationId: config.locationId, campaignId: config.campaignId });
+      void persist.onAiVersionRecorded?.(generateReviewRewrite(original).text);
     }, 900);
   }
 
@@ -104,6 +109,7 @@ export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowC
 
   function shareToDestination() {
     track("final_review_approved", { locationId: config.locationId, campaignId: config.campaignId, properties: { rating } });
+    void persist.onApprove?.(finalText, selectedVersion === "ai" && !aiFailed);
     if (simulate === "destination-unavailable") {
       setError("destination-unavailable");
       return;
@@ -112,10 +118,11 @@ export function ReviewFlowExperience({ config, simulate }: { config: ReviewFlowC
       window.open(config.googleReviewUrl, "_blank", "noopener,noreferrer");
     }
     track("public_review_clicked", { locationId: config.locationId, campaignId: config.campaignId });
-    recordReviewCompletion(config.locationId, { rating, shared: true });
+    void persist.onPublicClick?.();
     setStep("submitting");
     setTimeout(() => {
       track("flow_completed", { locationId: config.locationId, campaignId: config.campaignId, properties: { rating } });
+      void persist.onComplete?.(rating);
       setStep("completion");
     }, 700);
   }

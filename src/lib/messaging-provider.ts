@@ -1,15 +1,39 @@
-// MessagingProvider abstraction (section 29). No real WhatsApp/SMS/Email
+// MessagingProvider abstraction (section 23). No real WhatsApp/SMS/Email
 // provider is connected — this interface is the seam a real one (WhatsApp
-// Business API, Twilio, SendGrid, etc.) would implement later without any
-// call-site changes elsewhere in the app.
+// Business Platform, Twilio, SendGrid, etc.) would implement later without
+// any call-site changes elsewhere in the app. Method names match the spec
+// exactly (sendMessage/getMessageStatus/handleWebhook/validateNumber/optOut).
 export type MessagingChannel = "whatsapp" | "sms" | "email" | "qr" | "link";
-export type DeliveryStatus = "queued" | "sent" | "delivered" | "failed";
+export type DeliveryStatus = "queued" | "sent" | "delivered" | "read" | "failed";
+
+// Mirrors the `messages` table (section 24) — this is the shape a provider
+// call site persists after sendMessage()/handleWebhook() update its status.
+export interface MessageDeliveryRecord {
+  id: string;
+  provider: string;
+  channel: MessagingChannel;
+  recipientMasked: string;
+  templateName?: string;
+  variables?: Record<string, string>;
+  status: DeliveryStatus;
+  providerMessageId?: string;
+  sentAt?: string;
+  deliveredAt?: string;
+  readAt?: string;
+  failedAt?: string;
+  errorCode?: string;
+}
 
 export interface MessagingProvider {
   name: string;
   sendMessage(to: string, body: string, channel: MessagingChannel): Promise<{ id: string; status: DeliveryStatus }>;
-  getDeliveryStatus(messageId: string): Promise<DeliveryStatus>;
-  handleIncoming(payload: unknown): void;
+  getMessageStatus(messageId: string): Promise<DeliveryStatus>;
+  // Webhook payload shape is provider-specific — validated/normalized by
+  // the caller before this is invoked. Must be idempotent (section 25):
+  // the same delivery/read/failed event replayed twice must not re-fire
+  // side effects. See src/lib/idempotency.ts for the shared guard.
+  handleWebhook(payload: unknown): void;
+  validateNumber(phone: string): boolean;
   optOut(patientMasked: string): void;
 }
 
@@ -25,12 +49,16 @@ export const mockMessagingProvider: MessagingProvider = {
     debugLog("send", { to, body, channel });
     return { id: `mock-msg-${seq}`, status: "sent" };
   },
-  async getDeliveryStatus(messageId) {
+  async getMessageStatus(messageId) {
     debugLog("status check", messageId);
     return "delivered";
   },
-  handleIncoming(payload) {
-    debugLog("incoming", payload);
+  handleWebhook(payload) {
+    debugLog("webhook", payload);
+  },
+  validateNumber(phone) {
+    // Loose E.164-ish check — real validation belongs to the provider.
+    return /^\+?[1-9]\d{7,14}$/.test(phone.replace(/[\s-]/g, ""));
   },
   optOut(patientMasked) {
     debugLog("opt-out recorded", patientMasked);

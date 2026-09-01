@@ -9,7 +9,8 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { WhatsAppPreview, renderMessageTemplate } from "./WhatsAppPreview";
 import { getScopedMessageTemplates } from "@/lib/scope-selectors";
-import { MESSAGE_CATEGORIES, generateMessageDraft } from "@/lib/mock/message-library";
+import { MESSAGE_CATEGORIES } from "@/lib/mock/message-library";
+import { generateMessageDraft } from "@/lib/ai-service";
 import { addCustomMessageTemplate, toggleTemplateArchived, logAuditAction } from "@/lib/runtime-store";
 import type { MessageCategory, MessageTemplate, ReviewFlowLanguage } from "@/lib/types";
 
@@ -127,7 +128,7 @@ function GeneratorDialog({ open, onClose }: { open: boolean; onClose: () => void
   const [draft, setDraft] = useState<string | null>(null);
 
   function generate() {
-    setDraft(generateMessageDraft({ doctorName, clinicName, trigger, tone, language }));
+    setDraft(generateMessageDraft({ doctorName, clinicName, trigger, tone, language }).text);
   }
 
   function save() {
