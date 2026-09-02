@@ -5,7 +5,13 @@
 // what actually protects the data, not secrecy of this key.
 import { createBrowserClient } from "@supabase/ssr";
 
-let cached: ReturnType<typeof createBrowserClient> | null = null;
+// No generated Database type exists yet (no `supabase gen types` step in
+// this build) — `any` here is a deliberate, narrow substitute so
+// .from(table) doesn't collapse to `never` for arbitrary table names.
+// Callers narrow each query's result with their own local row interfaces
+// (see repositories/*.ts) rather than relying on this for type safety.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cached: ReturnType<typeof createBrowserClient<any>> | null = null;
 
 export function getSupabaseBrowserClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -16,6 +22,7 @@ export function getSupabaseBrowserClient() {
       "Check INTEGRATION_MODE before calling this — it should only be reached when INTEGRATION_MODE=live."
     );
   }
-  if (!cached) cached = createBrowserClient(url, anonKey);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  if (!cached) cached = createBrowserClient<any>(url, anonKey);
   return cached;
 }

@@ -7,7 +7,7 @@
 // hydrates from localStorage after mount so there is no hydration mismatch.
 
 import { useSyncExternalStore } from "react";
-import type { AuditAction, AuditLogEntry, MessageTemplate, PermissionRole, ReviewCampaign, Task } from "./types";
+import type { AuditAction, AuditLogEntry, Client, MessageTemplate, PermissionRole, ReviewCampaign, Task } from "./types";
 import type { IntegrationActivityLogEntry } from "./integrations/types";
 
 export interface ReviewCompletionDelta {
@@ -30,6 +30,7 @@ interface RuntimeState {
   readOnlySync: boolean;
   mappingDecisions: Record<string, { status: "confirmed" | "rejected"; locationId?: string }>;
   integrationActivity: IntegrationActivityLogEntry[];
+  customClients: Client[];
 }
 
 const STORAGE_KEY = "clinicos-runtime-v1";
@@ -47,6 +48,7 @@ const EMPTY_STATE: RuntimeState = {
   readOnlySync: true,
   mappingDecisions: {},
   integrationActivity: [],
+  customClients: [],
 };
 
 let state: RuntimeState = EMPTY_STATE;
@@ -277,4 +279,18 @@ export function logIntegrationActivity(entry: Omit<IntegrationActivityLogEntry, 
 
 export function getIntegrationActivity(): IntegrationActivityLogEntry[] {
   return state.integrationActivity;
+}
+
+// Demo-mode client creation (Journey A) — mirrors addCustomCampaign/
+// addCustomTask. Live mode instead calls POST /api/clients, which writes to
+// Supabase via the service role, since there's no real authenticated
+// session yet to authorize a direct browser write.
+export function addCustomClient(client: Client) {
+  state = { ...state, customClients: [client, ...state.customClients] };
+  persist();
+  emit();
+}
+
+export function getCustomClients(): Client[] {
+  return state.customClients;
 }

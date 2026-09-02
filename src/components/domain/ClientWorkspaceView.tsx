@@ -8,6 +8,7 @@ import {
   ClientOverviewTab, ClientLocationsTab, ClientGoogleTab, ClientReputationTab,
   ClientWebsiteTab, ClientSocialTab, ClientAdsTab, ClientLeadsTab, ClientTasksTab, ClientReportsTab,
 } from "./ClientTabs";
+import { ClientIntegrationsTab } from "./ClientIntegrationsTab";
 
 export function ClientWorkspaceView({ client, scope }: { client: Client; scope: Scope }) {
   useRuntimeStore();
@@ -24,6 +25,7 @@ export function ClientWorkspaceView({ client, scope }: { client: Client; scope: 
         <TabsTrigger value="leads">Leads</TabsTrigger>
         <TabsTrigger value="tasks">Tasks</TabsTrigger>
         <TabsTrigger value="reports">Reports</TabsTrigger>
+        <TabsTrigger value="integrations">Integrations</TabsTrigger>
       </TabsList>
       <TabsContent value="overview"><ClientOverviewTab client={client} /></TabsContent>
       <TabsContent value="locations"><ClientLocationsTab client={client} /></TabsContent>
@@ -35,6 +37,7 @@ export function ClientWorkspaceView({ client, scope }: { client: Client; scope: 
       <TabsContent value="leads"><ClientLeadsTab client={client} scope={scope} /></TabsContent>
       <TabsContent value="tasks"><ClientTasksTab client={client} scope={scope} /></TabsContent>
       <TabsContent value="reports"><ClientReportsTab client={client} /></TabsContent>
+      <TabsContent value="integrations"><ClientIntegrationsTab client={client} /></TabsContent>
     </Tabs>
   );
 }

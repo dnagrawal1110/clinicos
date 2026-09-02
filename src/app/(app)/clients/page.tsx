@@ -1,13 +1,15 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { PageHeader } from "@/components/shell/PageHeader";
 import { ClientHealthTable } from "@/components/domain/ClientHealthTable";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Search, SlidersHorizontal, Plus } from "lucide-react";
+import { Search, SlidersHorizontal } from "lucide-react";
 import { ALL_CLIENTS } from "@/lib/mock/clients";
+import { AddClientDialog } from "@/components/domain/AddClientDialog";
+import { useRuntimeStore, getCustomClients } from "@/lib/runtime-store";
 import type { Client } from "@/lib/types";
 
 const STATUS_FILTERS: { key: Client["status"] | "all"; label: string }[] = [
@@ -21,32 +23,37 @@ const STATUS_FILTERS: { key: Client["status"] | "all"; label: string }[] = [
 type SortKey = "name" | "healthOverall" | "locations" | "reviewsTotal";
 
 export default function ClientsPage() {
+  useRuntimeStore(); // subscribe so a client added via Add Client (Demo Workspace) appears without a reload
   const [query, setQuery] = useState("");
   const [status, setStatus] = useState<Client["status"] | "all">("all");
   const [sortKey, setSortKey] = useState<SortKey>("healthOverall");
   const [sortAsc, setSortAsc] = useState(true);
 
-  const filtered = useMemo(() => {
-    let list = ALL_CLIENTS.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.specialty.toLowerCase().includes(query.toLowerCase()) || c.city.toLowerCase().includes(query.toLowerCase()));
-    if (status !== "all") list = list.filter((c) => c.status === status);
-    list = [...list].sort((a, b) => {
-      let av: number | string, bv: number | string;
-      if (sortKey === "name") { av = a.name; bv = b.name; }
-      else if (sortKey === "locations") { av = a.locations.length; bv = b.locations.length; }
-      else if (sortKey === "reviewsTotal") { av = a.reviewsTotal; bv = b.reviewsTotal; }
-      else { av = a.healthOverall; bv = b.healthOverall; }
-      if (typeof av === "string") return sortAsc ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
-      return sortAsc ? (av as number) - (bv as number) : (bv as number) - (av as number);
-    });
-    return list;
-  }, [query, status, sortKey, sortAsc]);
+  // Small list (~100 clients) — recomputed every render rather than memoized,
+  // so a newly added client is picked up the moment runtime-store re-renders
+  // this component, with no separate dependency-tracking to get wrong.
+  const allClients = [...getCustomClients(), ...ALL_CLIENTS];
+
+  // ~100 clients — filtering/sorting inline on every render is cheap enough
+  // that memoizing it isn't worth the dependency-tracking complexity here.
+  let filtered = allClients.filter((c) => c.name.toLowerCase().includes(query.toLowerCase()) || c.specialty.toLowerCase().includes(query.toLowerCase()) || c.city.toLowerCase().includes(query.toLowerCase()));
+  if (status !== "all") filtered = filtered.filter((c) => c.status === status);
+  filtered = [...filtered].sort((a, b) => {
+    let av: number | string, bv: number | string;
+    if (sortKey === "name") { av = a.name; bv = b.name; }
+    else if (sortKey === "locations") { av = a.locations.length; bv = b.locations.length; }
+    else if (sortKey === "reviewsTotal") { av = a.reviewsTotal; bv = b.reviewsTotal; }
+    else { av = a.healthOverall; bv = b.healthOverall; }
+    if (typeof av === "string") return sortAsc ? av.localeCompare(bv as string) : (bv as string).localeCompare(av);
+    return sortAsc ? (av as number) - (bv as number) : (bv as number) - (av as number);
+  });
 
   return (
     <div className="animate-fade-in">
       <PageHeader
         title="All Clients"
-        subtitle={`${ALL_CLIENTS.length} clients across the portfolio`}
-        actions={<Button variant="primary" size="md"><Plus className="h-3.5 w-3.5" /> Add Client</Button>}
+        subtitle={`${allClients.length} clients across the portfolio`}
+        actions={<AddClientDialog />}
       />
 
       <Card>

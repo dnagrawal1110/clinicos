@@ -12,6 +12,9 @@ import { createServerClient } from "@supabase/ssr";
 import { createClient } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
+// No generated Database type exists yet — see the same note in
+// lib/supabase/client.ts. `any` here is deliberate and narrow, not a
+// general escape hatch.
 export async function getSupabaseServerClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -19,7 +22,8 @@ export async function getSupabaseServerClient() {
     throw new Error("NEXT_PUBLIC_SUPABASE_URL/NEXT_PUBLIC_SUPABASE_ANON_KEY are not set.");
   }
   const cookieStore = await cookies();
-  return createServerClient(url, anonKey, {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return createServerClient<any>(url, anonKey, {
     cookies: {
       getAll: () => cookieStore.getAll(),
       setAll: (cookiesToSet) => {
@@ -34,7 +38,8 @@ export async function getSupabaseServerClient() {
   });
 }
 
-let cachedServiceRoleClient: ReturnType<typeof createClient> | null = null;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+let cachedServiceRoleClient: ReturnType<typeof createClient<any>> | null = null;
 
 export function getSupabaseServiceRoleClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
@@ -46,7 +51,8 @@ export function getSupabaseServiceRoleClient() {
     );
   }
   if (!cachedServiceRoleClient) {
-    cachedServiceRoleClient = createClient(url, serviceKey, {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    cachedServiceRoleClient = createClient<any>(url, serviceKey, {
       auth: { autoRefreshToken: false, persistSession: false },
     });
   }

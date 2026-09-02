@@ -1,18 +1,27 @@
-// The Data Mapping Review confidence algorithm (sections 12/13). This is
-// real, fully-testable logic — it needs no live Google API to run, only a
-// "discovered location" shape (whatever Google's Business Information API
-// returns) and the ClinicOS locations to compare against.
+// The Data Mapping Review confidence algorithm (Part 4/13). Real,
+// fully-testable logic — it needs no live Google API to run, only a
+// "discovered asset" shape (whatever a provider's discovery API returns)
+// and the ClinicOS locations to compare against. Provider-neutral and
+// data-source-neutral: callers pass plain candidate records, so this same
+// function scores mock demo data and real Supabase rows identically.
 //
 // Explicit design constraint from the spec: never map by name alone. Phone
 // and website are exact-match signals and dominate the score; name and
 // address are fuzzy signals that refine among candidates that already
 // plausibly match on the strong signals.
-import type { Location } from "@/lib/types";
-import { getClient } from "@/lib/mock/clients";
-
 export interface DiscoveredGoogleLocation {
   externalLocationId: string;
   name: string;
+  address?: string;
+  phone?: string;
+  website?: string;
+}
+
+export interface MappingCandidateLocation {
+  id: string;
+  clientLabel: string;
+  name: string;
+  city: string;
   address?: string;
   phone?: string;
   website?: string;
@@ -26,6 +35,10 @@ export interface MappingSuggestion {
 
 function normalizePhone(phone: string): string {
   return phone.replace(/[^\d]/g, "").replace(/^91/, ""); // strip formatting + India country code
+}
+
+function normalizeDomain(url: string): string {
+  return url.toLowerCase().replace(/^https?:\/\//, "").replace(/^www\./, "").replace(/\/.*$/, "");
 }
 
 function tokenize(text: string): Set<string> {
@@ -44,10 +57,8 @@ function tokenOverlapScore(a: string, b: string): number {
   return union === 0 ? 0 : intersection / union;
 }
 
-export function scoreCandidate(discovered: DiscoveredGoogleLocation, location: Location): { score: number; reasons: string[] } {
-  const client = getClient(location.clientId);
-  const clientLabel = client?.brand ?? client?.name ?? "";
-  const locationLabel = `${clientLabel} ${location.name}`;
+export function scoreCandidate(discovered: DiscoveredGoogleLocation, location: MappingCandidateLocation): { score: number; reasons: string[] } {
+  const locationLabel = `${location.clientLabel} ${location.name}`;
 
   let score = 0;
   const reasons: string[] = [];
@@ -59,10 +70,12 @@ export function scoreCandidate(discovered: DiscoveredGoogleLocation, location: L
     }
   }
 
-  // Website matching intentionally omitted here: the mock Location type has
-  // no per-location website field yet (that lives in the `websites` table
-  // added for this pass, not yet surfaced on the domain type) — wiring it
-  // in is mechanical once a caller has that value to pass alongside `location`.
+  if (discovered.website && location.website) {
+    if (normalizeDomain(discovered.website) === normalizeDomain(location.website)) {
+      score += 35;
+      reasons.push("Website domain matches exactly");
+    }
+  }
 
   const nameScore = tokenOverlapScore(discovered.name, locationLabel);
   if (nameScore > 0) {
@@ -72,7 +85,7 @@ export function scoreCandidate(discovered: DiscoveredGoogleLocation, location: L
   }
 
   if (discovered.address) {
-    const addressScore = tokenOverlapScore(discovered.address, `${location.address} ${location.city}`);
+    const addressScore = tokenOverlapScore(discovered.address, `${location.address ?? ""} ${location.city}`);
     if (addressScore > 0) {
       score += Math.round(addressScore * 25);
       if (addressScore > 0.4) reasons.push("Address closely matches");
@@ -89,7 +102,7 @@ export function scoreCandidate(discovered: DiscoveredGoogleLocation, location: L
 
 // Ranks every candidate location and returns the best match (if any scored
 // above a sane floor) plus the full ranked list for a "not this one?" UI.
-export function suggestMapping(discovered: DiscoveredGoogleLocation, candidateLocations: Location[]): { best: MappingSuggestion | null; ranked: MappingSuggestion[] } {
+export function suggestMapping(discovered: DiscoveredGoogleLocation, candidateLocations: MappingCandidateLocation[]): { best: MappingSuggestion | null; ranked: MappingSuggestion[] } {
   const ranked = candidateLocations
     .map((loc) => {
       const { score, reasons } = scoreCandidate(discovered, loc);

@@ -16,9 +16,8 @@ import { getClient } from "@/lib/mock/clients";
 import { getLocationIntegrationStatus, overallStatusForLocation, countByStatus } from "@/lib/integrations/connection-health";
 import { runSystemHealthCheck } from "@/lib/integrations/system-health-check";
 import { getMockDiscoveredLocations } from "@/lib/integrations/mock-discovery";
-import { suggestMapping, confidenceTier } from "@/lib/integrations/mapping-confidence";
+import { suggestMapping, confidenceTier, type MappingCandidateLocation } from "@/lib/integrations/mapping-confidence";
 import { INTEGRATION_KINDS, INTEGRATION_LABEL, CONNECTION_STATUS_LABEL, type ConnectionStatus } from "@/lib/integrations/types";
-import type { Location } from "@/lib/types";
 
 const STATUS_VARIANT: Record<ConnectionStatus, "success" | "warning" | "critical" | "neutral" | "info"> = {
   connected: "success", mock: "success", "partially-connected": "warning", syncing: "info",
@@ -232,7 +231,11 @@ export function SyncCenterTab({ scope }: { scope: Scope }) {
 export function MappingReviewTab() {
   useRuntimeStore();
   const discovered = getMockDiscoveredLocations();
-  const allLocs = [...(getClient("skinethics")?.locations ?? []), ...(getClient("dr-ananya-sharma")?.locations ?? [])];
+  const rawLocs = [...(getClient("skinethics")?.locations ?? []), ...(getClient("dr-ananya-sharma")?.locations ?? [])];
+  const allLocs: MappingCandidateLocation[] = rawLocs.map((l) => ({
+    id: l.id, name: l.name, city: l.city, address: l.address, phone: l.phone,
+    clientLabel: getClient(l.clientId)?.brand ?? getClient(l.clientId)?.name ?? "",
+  }));
   const decisions = getMappingDecisions();
 
   function confirm(externalId: string, locationId: string) {
@@ -254,10 +257,9 @@ export function MappingReviewTab() {
       </CardHeader>
       <div className="flex flex-col divide-y divide-[var(--color-border)] px-5 pb-3">
         {discovered.map((d) => {
-          const { best, ranked } = suggestMapping(d, allLocs as Location[]);
+          const { best, ranked } = suggestMapping(d, allLocs);
           const decision = decisions[d.externalLocationId];
           const suggestedLocation = best ? allLocs.find((l) => l.id === best.locationId) : null;
-          const suggestedClient = suggestedLocation ? getClient(suggestedLocation.clientId) : null;
           return (
             <div key={d.externalLocationId} className="py-4">
               <div className="flex flex-wrap items-center gap-3">
@@ -268,7 +270,7 @@ export function MappingReviewTab() {
                 <span className="text-[var(--color-ink-tertiary)]">↓</span>
                 {suggestedLocation ? (
                   <div className="min-w-0 flex-1">
-                    <div className="text-[13px] font-medium text-[var(--color-ink)]">{suggestedClient?.name} — {suggestedLocation.name}</div>
+                    <div className="text-[13px] font-medium text-[var(--color-ink)]">{suggestedLocation.clientLabel} — {suggestedLocation.name}</div>
                     <div className="flex flex-wrap gap-1 text-[11px] text-[var(--color-ink-tertiary)]">{best!.reasons.join(" · ") || "Weak match"}</div>
                   </div>
                 ) : (
@@ -286,9 +288,12 @@ export function MappingReviewTab() {
                   </div>
                 )}
               </div>
-              {ranked.length > 1 && ranked[1].confidence > 15 && !decision && (
-                <p className="mt-1.5 text-[11px] text-[var(--color-ink-tertiary)]">Next best: {getClient(allLocs.find((l) => l.id === ranked[1].locationId)?.clientId ?? "")?.name} — {allLocs.find((l) => l.id === ranked[1].locationId)?.name} ({Math.round(ranked[1].confidence)}%)</p>
-              )}
+              {ranked.length > 1 && ranked[1].confidence > 15 && !decision && (() => {
+                const next = allLocs.find((l) => l.id === ranked[1].locationId);
+                return next ? (
+                  <p className="mt-1.5 text-[11px] text-[var(--color-ink-tertiary)]">Next best: {next.clientLabel} — {next.name} ({Math.round(ranked[1].confidence)}%)</p>
+                ) : null;
+              })()}
             </div>
           );
         })}

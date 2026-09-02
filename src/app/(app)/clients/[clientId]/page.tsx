@@ -13,7 +13,7 @@ import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { getClient } from "@/lib/mock/clients";
 import { useSyncScope } from "@/lib/scope-context";
-import { useRuntimeStore } from "@/lib/runtime-store";
+import { useRuntimeStore, getCustomClients } from "@/lib/runtime-store";
 import { formatINR, formatNumber } from "@/lib/utils";
 
 const STATUS_META: Record<string, { label: string; variant: "success" | "warning" | "critical" | "neutral" }> = {
@@ -26,7 +26,7 @@ const STATUS_META: Record<string, { label: string; variant: "success" | "warning
 export default function ClientWorkspacePage({ params }: { params: Promise<{ clientId: string }> }) {
   useRuntimeStore();
   const { clientId } = use(params);
-  const client = getClient(clientId);
+  const client = getClient(clientId) ?? getCustomClients().find((c) => c.id === clientId);
   const router = useRouter();
   const scope = { type: "client" as const, clientId };
   useSyncScope(scope);
